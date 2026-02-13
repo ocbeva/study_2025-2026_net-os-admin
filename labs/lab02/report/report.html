@@ -1,0 +1,236 @@
+<h1 id="цель-работы">Цель работы</h1>
+<p>Приобрести практические навыки по установке и конфигурированию
+DNS-сервера, усвоить принципы работы системы доменных имён.</p>
+<h1 id="задание">Задание</h1>
+<ol type="1">
+<li>Установите на виртуальной машине server DNS-сервер bind и
+bind-utils.</li>
+<li>Сконфигурируйте на виртуальной машине server кэширующий
+DNS-сервер.</li>
+<li>Сконфигурируйте на виртуальной машине server первичный
+DNS-сервер.</li>
+<li>При помощи утилит dig и host проанализируйте работу
+DNS-сервера.</li>
+<li>Напишите скрипт для Vagrant, фиксирующий действия по установке и
+конфигурированию DNS-сервера во внутреннем окружении виртуальной машины
+server. Соответствующим образом внесите изменения в Vagrantfile</li>
+</ol>
+<h1 id="выполнение-лабораторной-работы">Выполнение лабораторной
+работы</h1>
+<p>Загрузим операционную систему и перейдем в рабочий каталог с
+проектом: <code>cd C:\Users\dasha\work\study\tbmanturov\vagrant\</code>
+Затем запустим виртуальную машину server с помощью команды:
+<code>make server-up</code> На виртуальной машине server войдем под
+созданным в предыдущей работе пользователем и откроем терминал. Перейдем
+в режим суперпользователя и установим bind и bind-utils:</p>
+<figure id="fig:002">
+<img src="image/1.png" style="width:70.0%"
+alt="Установка bind и bind-utils в режиме суперпользователя" />
+<figcaption aria-hidden="true">Установка bind и bind-utils в режиме
+суперпользователя</figcaption>
+</figure>
+<p>C помощью утилиты dig сделаем запрос к DNS-адресу www.yandex.ru:</p>
+<figure id="fig:003">
+<img src="image/2.png" style="width:70.0%" alt="Команда dig" />
+<figcaption aria-hidden="true">Команда dig</figcaption>
+</figure>
+<p>Давайте рассмотрим разделы данного вывода подробней:</p>
+<ul>
+<li><p>HEADER (заголовок): показывает версию dig, глобальные опции
+используемые с командой и другую дополнительную информацию</p></li>
+<li><p>QUESTION SECTION (секция запроса): Показывает наш запрос, то есть
+мы запросили показать A-запись (команда dig без параметров) для домена
+www.yandex.ru</p></li>
+<li><p>ANSWER SECTION (секция ответа): Показывает ответ полученный от
+DNS, в нашем случае показывает A-запись для www.yandex.ru Последняя
+секция это статистика по запросу (служебная информация)- время
+выполнения запроса (10 мс), имя DNS-сервера который запрашивался, когда
+был создан запрос и размер сообщения</p></li>
+</ul>
+<p><strong>Конфигурирование кэширующего DNS-сервера</strong></p>
+<p>В отчёте проанализируем построчно содержание файлов /etc/resolv.conf,
+/etc/named.conf, /var/named/named.ca, /var/named/named.localhost,
+/var/named/named.loopback. Рассмотрим /etc/resolv.conf. В нём указано
+имя сервера и его адрес:</p>
+<p>Рассмотрим содержимое файле <code>/var/named/named.localhost</code>.
+В нём есть:</p>
+<ul>
+<li><p>Запись начала полномочий (SOA), которая указывает начало зоны и
+включает имя хоста, на котором находится файл данных
+name.local.</p></li>
+<li><p>Запись сервера имен (NS), идентифицирующая главный и подчиненные
+серверы имен DNS.</p></li>
+<li><p>Указаны адреса IPv4 и IPv6 локального хоста.</p></li>
+</ul>
+<p>В файле <code>/var/named/named.loopback</code> все аналогично, только
+добавляется:</p>
+<ul>
+<li>PTR-запись для локального хоста</li>
+</ul>
+<p>Далее запустим DNS-сервер, включим запуск DNS-сервера в автозапуск
+при загрузке системы. Проанализируем отличие в выведенной на экран
+информации при выполнении команд <code>dig www.yandex.ru</code> и
+<code>dig @127.0.0.1 www.yandex.ru</code>:</p>
+<figure id="fig:007">
+<img src="image/3.png" style="width:70.0%" alt="Команда dig" />
+<figcaption aria-hidden="true">Команда dig</figcaption>
+</figure>
+<p>При указании опрашиваемого адреса в строке с адресом сервера написан
+адрес, который указывали, также указаны куки, а время запроса
+увеличилось.</p>
+<p>Сделаем DNS-сервер сервером по умолчанию для хоста server и
+внутренней виртуальной сети. Для этого требуется изменить настройки
+сетевого соединения eth0 в NetworkManager, переключив его на работу с
+внутренней сетью и указав для него в качестве DNS-сервера по умолчанию
+адрес 127.0.0.1, затем сделаем тоже самое для соединения System eth0.
+Затем запустим NetworkManager и проверим наличие изменений в файле
+etc/resolv.conf(адрес сервера изменился на заданный нами):</p>
+<figure id="fig:008">
+<img src="image/4.png" style="width:70.0%"
+alt="Изменение адреса dns-сервера" />
+<figcaption aria-hidden="true">Изменение адреса dns-сервера</figcaption>
+</figure>
+<p>Настроим направление DNS-запросов от всех узлов внутренней сети,
+включая запросы от узла server, через узел server. Для этого внесем
+изменения в файл /etc/named.conf:</p>
+<figure id="fig:010">
+<img src="image/5.png" style="width:70.0%" alt="Изменение скрипта" />
+<figcaption aria-hidden="true">Изменение скрипта</figcaption>
+</figure>
+<p>Внесем изменения в настройки межсетевого экрана узла server, разрешив
+работу с DNS и убедимся, что DNS-запросы идут через узел server, который
+прослушивает порт 53:</p>
+<figure id="fig:011">
+<img src="image/5.png" style="width:70.0%" alt="Внесение изменений" />
+<figcaption aria-hidden="true">Внесение изменений</figcaption>
+</figure>
+<p><strong>Конфигурирование кэширующего DNS-сервера при наличии
+фильтрации DNS-запросов маршрутизаторами</strong></p>
+<p>В случае возникновения в сети ситуации, когда DNS-запросы от сервера
+фильтруются сетевым оборудованием, следует добавить перенаправление
+DNS-запросов на конкретный вышестоящий DNS-сервер. Для этого в
+конфигура- ционный файл named.conf в секцию options следует
+добавить:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">forwarders</span> { список DNS-серверов }<span class="kw">;</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">forward</span> first<span class="kw">;</span></span></code></pre></div>
+<p>Текущий список DNS-серверов можно получить, введя на локальном хосте
+(на котором развёртывается образ виртуальной машины) следующую
+команду:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> /etc/resolv.conf</span></code></pre></div>
+<p>Мы получили следующие данные для конфигурационного файла named.conf
+виртуальной машины server:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">forwarders</span> { 198.168.1.1<span class="kw">;</span> <span class="er">}</span><span class="kw">;</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">forward</span> first<span class="kw">;</span></span></code></pre></div>
+<figure id="fig:012">
+<img src="image/6.png" style="width:70.0%" alt="Изменение скрипта" />
+<figcaption aria-hidden="true">Изменение скрипта</figcaption>
+</figure>
+<p><strong>Конфигурирование первичного DNS-сервера</strong></p>
+<p>Скопируем шаблон описания DNS-зон named.rfc1912.zones из каталога
+/etc в каталог /etc/named и переименуеме его в eademidova.net:</p>
+<figure id="fig:014">
+<img src="image/7.png" style="width:70.0%" alt="Окно терминала" />
+<figcaption aria-hidden="true">Окно терминала</figcaption>
+</figure>
+<p>Включим файл описания зоны /etc/named/tbmanturov.net в
+конфигурационном файле DNS /etc/named.conf, добавив в нём в конце
+строку:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">include</span> <span class="st">&quot;/etc/named/tbmanturov.net&quot;</span><span class="kw">;</span></span></code></pre></div>
+<p>Внесём изменения в файл tbmanturov.net:</p>
+<figure id="fig:016">
+<img src="image/8.png" style="width:70.0%" alt="Изменение скрипта" />
+<figcaption aria-hidden="true">Изменение скрипта</figcaption>
+</figure>
+<p>В каталоге /var/named создадим подкаталоги master/fz и master/rz, в
+которых будут располагаться файлы прямой и обратной зоны соответственно,
+а затем скопируем шаблон прямой DNS-зоны named.localhost из каталога
+/var/named в каталог /var/named/master/fz и переименуем его в
+eademidova.net:</p>
+<figure id="fig:017">
+<img src="image/9.png" style="width:70.0%" alt="Изменение скрипта" />
+<figcaption aria-hidden="true">Изменение скрипта</figcaption>
+</figure>
+<p>Изменим файл /var/named/master/fz/user.net, указав необходимые
+DNS-записи для прямой зоны:</p>
+<figure id="fig:018">
+<img src="image/10.png" style="width:70.0%" alt="Изменение скрипта" />
+<figcaption aria-hidden="true">Изменение скрипта</figcaption>
+</figure>
+<p>Скопируем шаблон обратной DNS-зоны named.loopback из каталога
+/var/named в каталог /var/named/master/rz и переименуем его в 192.168.1,
+а также изменим файл:</p>
+<figure id="fig:019">
+<img src="image/11.png" style="width:70.0%" alt="Изменение скрипта" />
+<figcaption aria-hidden="true">Изменение скрипта</figcaption>
+</figure>
+<p>После изменения доступа к конфигурационным файлам named корректно
+восстановим специальные метки безопасности в SELinux, затем проверим
+состояние переключателей:</p>
+<figure id="fig:020">
+<img src="image/12.png" style="width:70.0%"
+alt="Восстановление меток безопасности и проверка состояния переключателей в SELinux" />
+<figcaption aria-hidden="true">Восстановление меток безопасности и
+проверка состояния переключателей в SELinux</figcaption>
+</figure>
+<p>В дополнительном терминале запустим в режиме реального времени
+расширенный лог системных сообщений, чтобы проверить корректность работы
+системы:</p>
+<figure id="fig:021">
+<img src="image/13.png" style="width:70.0%"
+alt="Запуск расширенного лога системных сообщений" />
+<figcaption aria-hidden="true">Запуск расширенного лога системных
+сообщений</figcaption>
+</figure>
+<p>В случае ошибок перезапустим DNS-сервер:</p>
+<figure id="fig:022">
+<img src="image/14.png" style="width:70.0%" alt="Перезапуск сервера" />
+<figcaption aria-hidden="true">Перезапуск сервера</figcaption>
+</figure>
+<p><strong>Анализ работы DNS-сервера</strong></p>
+<p>При помощи утилиты dig получим описание DNS-зоны с сервера
+ns.tbmanturov.net:</p>
+<figure id="fig:023">
+<img src="image/15.png" style="width:70.0%" alt="Утилита dig" />
+<figcaption aria-hidden="true">Утилита dig</figcaption>
+</figure>
+<p>При помощи утилиты host проанализируем корректность работы
+DNS-сервера, можно увидеть, что все внесённые нами изменения в работу
+сервера учтены:</p>
+<figure id="fig:024">
+<img src="image/16.png" style="width:70.0%" alt="Утилита host" />
+<figcaption aria-hidden="true">Утилита host</figcaption>
+</figure>
+<p><strong>Внесение изменений в настройки внутреннего окружения
+виртуальной машины</strong></p>
+<p>На виртуальной машине server перейдем в каталог для внесения
+изменений в настройки внутреннего окружения /vagrant/provision/server/,
+создадим в нём каталог dns, в который поместим в соответствующие
+каталоги конфигурационные файлы DNS, а затем в каталоге
+/vagrant/provision/server создадим исполняемый файл dns.sh:</p>
+<figure id="fig:026">
+<img src="image/17.png" style="width:70.0%"
+alt="Создание каталога dns и перенос в него файлов, создание dns.sh" />
+<figcaption aria-hidden="true">Создание каталога dns и перенос в него
+файлов, создание dns.sh</figcaption>
+</figure>
+<p>Запишем в dns.sh следующий скрипт:</p>
+<figure id="fig:025">
+<img src="image/18.png" style="width:70.0%" alt="Изменение скрипта" />
+<figcaption aria-hidden="true">Изменение скрипта</figcaption>
+</figure>
+<p>Для отработки созданного скрипта во время загрузки виртуальной машины
+server в конфигурационном файле Vagrantfile добавим в разделе
+конфигурации для сервера:</p>
+<figure id="fig:027">
+<img src="image/19.png" style="width:70.0%"
+alt="Изменение Vagrantfile" />
+<figcaption aria-hidden="true">Изменение Vagrantfile</figcaption>
+</figure>
+<h1 id="выводы">Выводы</h1>
+<p>В процессе выполнения данной лабораторной работы я приобрела
+практические навыки по установке и конфигурированию DNS-сервера, усвоила
+принципы работы системы доменных имён.</p>

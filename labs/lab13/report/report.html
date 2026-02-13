@@ -1,0 +1,284 @@
+<h1 id="цель-работы">Цель работы</h1>
+<p>Приобрести навыки настройки сервера NFS для удалённого доступа к
+ресурсам.</p>
+<h1 id="задание">Задание</h1>
+<ol type="1">
+<li><p>Установить и настроить сервер NFSv4.</p></li>
+<li><p>Подмонтировать удалённый ресурс на клиенте.</p></li>
+<li><p>Подключить каталог с контентом веб-сервера к дереву NFS.</p></li>
+<li><p>Подключить каталог для удалённой работы вашего пользователя к
+дереву NFS.</p></li>
+<li><p>Написать скрипты для Vagrant, фиксирующие действия по установке и
+настройке сервера NFSv4 во внутреннем окружении виртуальных машин server
+и client. Соответствующим образом внести изменения в
+Vagrantfile.</p></li>
+</ol>
+<h1 id="выполнение-лабораторной-работы">Выполнение лабораторной
+работы</h1>
+<h2 id="настройка-сервера-nfsv4">Настройка сервера NFSv4</h2>
+<p>На сервере установим необходимое программное обеспечение:
+<code>dnf -y install nfs-utils</code></p>
+<figure id="fig:001">
+<img src="image/1.png" style="width:70.0%" alt="Установка пакетов" />
+<figcaption aria-hidden="true">Установка пакетов</figcaption>
+</figure>
+<p>На сервере создадим каталог, который предполагается сделать доступным
+всем пользователям сети (корень дерева NFS):
+<code>mkdir -p /srv/nfs</code></p>
+<p>В файле /etc/exports пропишем подключаемый через NFS общий каталог с
+доступом только на чтение: <code>/srv/nfs *(ro)</code></p>
+<figure id="fig:001">
+<img src="image/2.png" style="width:70.0%" alt="Редактирование файла" />
+<figcaption aria-hidden="true">Редактирование файла</figcaption>
+</figure>
+<p>Для общего каталога зададим контекст безопасности NFS:
+<code>semanage fcontext -a -t nfs_t "/srv/nfs(/.*)?"</code></p>
+<p>Применим изменённую настройку SELinux к файловой системе:
+<code>restorecon -vR /srv/nfs</code></p>
+<p>Запустим сервер NFS:</p>
+<pre><code>systemctl start nfs-server.service
+systemctl enable nfs-server.service</code></pre>
+<p>Настроим межсетевой экран для работы сервера NFS:</p>
+<pre><code>firewall-cmd --add-service=nfs
+firewall-cmd --add-service=nfs --permanent
+firewall-cmd --reload</code></pre>
+<figure id="fig:001">
+<img src="image/3.png" style="width:70.0%"
+alt="Настройка межсетевого экрана" />
+<figcaption aria-hidden="true">Настройка межсетевого экрана</figcaption>
+</figure>
+<p>На клиенте установим необходимое для работы NFS программное
+обеспечение: <code>dnf -y install nfs-utils</code></p>
+<figure id="fig:001">
+<img src="image/4.png" style="width:70.0%" alt="Установка пакетов" />
+<figcaption aria-hidden="true">Установка пакетов</figcaption>
+</figure>
+<p>На клиенте попробуем посмотреть имеющиеся подмонтированные удалённые
+ресурсы (вместо user укажите свой логин):</p>
+<p><code>showmount -e server.tbmanturov.net</code></p>
+<figure id="fig:001">
+<img src="image/5.png" style="width:70.0%"
+alt="Просмотр подмонтированных удаленных ресурсов" />
+<figcaption aria-hidden="true">Просмотр подмонтированных удаленных
+ресурсов</figcaption>
+</figure>
+<p>Попробуем на сервере остановить сервис межсетевого экрана:
+<code>systemctl stop firewalld.service</code></p>
+<p>Затем на клиенте вновь попробуем подключиться к удалённо
+смонтированному ресурсу:
+<code>showmount -e server.tbmanturov.net</code></p>
+<figure id="fig:001">
+<img src="image/5.png" style="width:70.0%"
+alt="Подключение к удаленно смонтированному ресурсу" />
+<figcaption aria-hidden="true">Подключение к удаленно смонтированному
+ресурсу</figcaption>
+</figure>
+<p>На сервере запустим сервис межсетевого экрана
+<code>systemctl start firewalld</code></p>
+<p>На сервере посмотрим, какие службы задействованы при удалённом
+монтировании:</p>
+<pre><code>lsof | grep TCP
+lsof | grep UDP</code></pre>
+<figure id="fig:001">
+<img src="image/7.png" style="width:70.0%"
+alt="Задействованные службы при удаленном монтировании по протоколу TCP" />
+<figcaption aria-hidden="true">Задействованные службы при удаленном
+монтировании по протоколу TCP</figcaption>
+</figure>
+<figure id="fig:001">
+<img src="image/8.png" style="width:70.0%"
+alt="Задействованные службы при удаленном монтировании по протоколу UDP" />
+<figcaption aria-hidden="true">Задействованные службы при удаленном
+монтировании по протоколу UDP</figcaption>
+</figure>
+<p>Добавим службы rpc-bind и mountd в настройки межсетевого экрана на
+сервере:</p>
+<pre><code>firewall-cmd --get-services
+firewall-cmd --add-service=mountd --add-service=rpc-bind
+firewall-cmd --add-service=mountd --add-service=rpc-bind --permanent
+firewall-cmd --reload</code></pre>
+<figure id="fig:001">
+<img src="image/9.png" style="width:70.0%"
+alt="Настройка межсетевого экрана на сервере" />
+<figcaption aria-hidden="true">Настройка межсетевого экрана на
+сервере</figcaption>
+</figure>
+<h2 id="монтирование-nfs-на-клиенте">Монтирование NFS на клиенте</h2>
+<p>На клиенте создадим каталог, в который будет монтироваться удалённый
+ресурс, и подмонтируем дерево NFS:</p>
+<pre><code>mkdir -p /mnt/nfs
+mount server.tbmanturov.net:/srv/nfs /mnt/nfs</code></pre>
+<p>Проверим, что общий ресурс NFS подключён правильно:
+<code>mount</code></p>
+<figure id="fig:001">
+<img src="image/10.png" style="width:70.0%"
+alt="Монтирование NFS на клиенте" />
+<figcaption aria-hidden="true">Монтирование NFS на клиенте</figcaption>
+</figure>
+<p>На клиенте в конце файла /etc/fstab добавим следующую запись:
+<code>server.tbmanturov.net:/srv/nfs /mnt/nfs nfs _netdev 0 0</code></p>
+<figure id="fig:001">
+<img src="image/11.png" style="width:70.0%"
+alt="Редактирование файла" />
+<figcaption aria-hidden="true">Редактирование файла</figcaption>
+</figure>
+<p>На клиенте проверим наличие автоматического монтирования удалённых
+ресурсов при запуске операционной системы:
+<code>systemctl status remote-fs.target</code></p>
+<figure id="fig:001">
+<img src="image/12.png" style="width:70.0%"
+alt="Проверка наличия автоматического монтирования удалённых ресурсов" />
+<figcaption aria-hidden="true">Проверка наличия автоматического
+монтирования удалённых ресурсов</figcaption>
+</figure>
+<p>Перезапустим клиент и убедимся, что удалённый ресурс подключается
+автоматически.</p>
+<figure id="fig:001">
+<img src="image/13.png" style="width:70.0%" alt="Проверка" />
+<figcaption aria-hidden="true">Проверка</figcaption>
+</figure>
+<h2 id="подключение-каталогов-к-дереву-nfs">Подключение каталогов к
+дереву NFS</h2>
+<p>На сервере создадим общий каталог, в который затем будет
+подмонтирован каталог с контентом веб-сервера:
+<code>mkdir -p /srv/nfs/www</code></p>
+<p>Подмонтируем каталог web-сервера:
+<code>mount -o bind /var/www/ /srv/nfs/www/</code></p>
+<p>На сервере проверим, что отображается в каталоге /srv/nfs.</p>
+<figure id="fig:001">
+<img src="image/14.png" style="width:70.0%" alt="Содержимое каталога" />
+<figcaption aria-hidden="true">Содержимое каталога</figcaption>
+</figure>
+<p>На клиенте посмотрим, что отображается в каталоге /mnt/nfs.</p>
+<figure id="fig:001">
+<img src="image/15.png" style="width:70.0%" alt="Содержимое каталога" />
+<figcaption aria-hidden="true">Содержимое каталога</figcaption>
+</figure>
+<p>На сервере в файле /etc/exports добавим экспорт каталога веб-сервера
+с удалённого ресурса: <code>/srv/nfs/www 192.168.0.0/16(rw)</code></p>
+<figure id="fig:001">
+<img src="image/16.png" style="width:70.0%"
+alt="Редактирование файла" />
+<figcaption aria-hidden="true">Редактирование файла</figcaption>
+</figure>
+<p>Экспортируем все каталоги, упомянутые в файле /etc/exports:
+<code>exportfs -r</code></p>
+<p>Проверим на клиенте каталог /mnt/nfs.</p>
+<figure id="fig:001">
+<img src="image/17.png" style="width:70.0%" alt="Содержимое каталога" />
+<figcaption aria-hidden="true">Содержимое каталога</figcaption>
+</figure>
+<p>На сервере в конце файла /etc/fstab добавим следующую запись:
+<code>/var/www /srv/nfs/www none bind 0 0</code></p>
+<figure id="fig:001">
+<img src="image/18.png" style="width:70.0%"
+alt="Редактирование файла" />
+<figcaption aria-hidden="true">Редактирование файла</figcaption>
+</figure>
+<p>Повторно экспортируем каталоги, указанные в файле /etc/exports:
+<code>exportfs -r</code></p>
+<p>На клиенте проверим каталог /mnt/nfs.</p>
+<figure id="fig:001">
+<img src="image/19.png" style="width:70.0%" alt="Содержимое каталога" />
+<figcaption aria-hidden="true">Содержимое каталога</figcaption>
+</figure>
+<h2 id="подключение-каталогов-для-работы-пользователей">Подключение
+каталогов для работы пользователей</h2>
+<p>На сервере под пользователем tbmanturov в его домашнем каталоге
+создадим каталог common с полными правами доступа только для этого
+пользователя, а в нём файл tbmanturov@server.txt:</p>
+<pre><code>mkdir -p -m 700 ~/common
+cd ~/common
+touch tbmanturov@server.txt</code></pre>
+<p>На сервере создадим общий каталог для работы пользователя tbmanturov
+по сети: <code>mkdir -p /srv/nfs/home/user</code></p>
+<p>Подмонтируем каталог common пользователя tbmanturov в NFS:
+<code>mount -o bind /home/user/common /srv/nfs/home/user</code></p>
+<figure id="fig:001">
+<img src="image/20.png" style="width:70.0%"
+alt="Подключение каталогов для работы пользователей" />
+<figcaption aria-hidden="true">Подключение каталогов для работы
+пользователей</figcaption>
+</figure>
+<p>Подключим каталог пользователя в файле /etc/exports, прописав в нём
+(вместо user укажите свой логин):
+<code>/srv/nfs/home/user 192.168.0.0/16(rw)</code></p>
+<figure id="fig:001">
+<img src="image/21.png" style="width:70.0%"
+alt="Редактирование файла" />
+<figcaption aria-hidden="true">Редактирование файла</figcaption>
+</figure>
+<p>Внесем изменения в файл /etc/fstab (вместо user укажите свой логин):
+<code>/home/user/common /srv/nfs/home/user none bind 0 0</code></p>
+<p>Повторно экспортируем каталоги: <code>exportfs -r</code></p>
+<p>На клиенте проверим каталог /mnt/nfs.</p>
+<figure id="fig:001">
+<img src="image/22.png" style="width:70.0%"
+alt="Проверка содержимого каталога" />
+<figcaption aria-hidden="true">Проверка содержимого
+каталога</figcaption>
+</figure>
+<p>На клиенте под пользователем user перейдем в каталог
+/mnt/nfs/home/user и попробуем создать в нём файл user@client.txt и
+внести в него какие-либо изменения:</p>
+<pre><code>cd /mnt/nfs/home/user
+touch user@client.txt</code></pre>
+<figure id="fig:001">
+<img src="image/23.png" style="width:70.0%" alt="Создание файла" />
+<figcaption aria-hidden="true">Создание файла</figcaption>
+</figure>
+<p>Безуспешно.</p>
+<p>Попробуем это проделать под пользователем root.</p>
+<p>Безуспешно.</p>
+<p>На сервере посмотрим, появились ли изменения в каталоге пользователя
+/home/user/common.</p>
+<p>Не появились, все тщетно.</p>
+<h2
+id="внесение-изменений-в-настройки-внутреннего-окружения-виртуальных-машин">Внесение
+изменений в настройки внутреннего окружения виртуальных машин</h2>
+<p>На виртуальной машине server перейдем в каталог для внесения
+изменений в настройки внутреннего окружения /vagrant/provision/server/,
+создадим в нём каталог nfs, в который поместим в соответствующие
+подкаталоги конфигурационные файлы:</p>
+<pre><code>cd /vagrant/provision/server
+mkdir -p /vagrant/provision/server/nfs/etc
+cp -R /etc/exports /vagrant/provision/server/nfs/etc/</code></pre>
+<p>В каталоге /vagrant/provision/server создадим исполняемый файл
+nfs.sh:</p>
+<pre><code>cd /vagrant/provision/server
+touch nfs.sh
+chmod +x nfs.sh</code></pre>
+<p>Открыв его на редактирование, пропишем в нём следующий скрипт:</p>
+<figure id="fig:001">
+<img src="image/24.png" style="width:70.0%"
+alt="Редактирование файла" />
+<figcaption aria-hidden="true">Редактирование файла</figcaption>
+</figure>
+<p>На виртуальной машине client перейдем в каталог для внесения
+изменений в настройки внутреннего окружения /vagrant/provision/client/:
+<code>cd /vagrant/provision/client</code></p>
+<p>В каталоге /vagrant/provision/client создадим исполняемый файл
+nfs.sh:</p>
+<pre><code>cd /vagrant/provision/client
+touch nfs.sh
+chmod +x nfs.sh</code></pre>
+<p>Открыв его на редактирование, пропишем в нём следующий скрипт:</p>
+<figure id="fig:001">
+<img src="image/25.png" style="width:70.0%"
+alt="Редактирование файла" />
+<figcaption aria-hidden="true">Редактирование файла</figcaption>
+</figure>
+<p>Для отработки созданных скриптов во время загрузки виртуальных машин
+server и client в конфигурационном файле Vagrantfile необходимо добавить
+в соответствующих разделах конфигураций для сервера и клиента:</p>
+<pre><code>server.vm.provision &quot;server nfs&quot;,
+  type: &quot;shell&quot;,
+  preserve_order: true,
+  path: &quot;provision/server/nfs.sh&quot;</code></pre>
+<pre><code>client.vm.provision &quot;client nfs&quot;,
+  type: &quot;shell&quot;,
+  preserve_order: true,
+  path: &quot;provision/client/nfs.sh&quot;</code></pre>
+<h1 id="выводы">Выводы</h1>
+<p>В процессе выполнения данной лабораторной работы я приобрела навыки
+настройки сервера NFS для удалённого доступа к ресурсам.</p>
