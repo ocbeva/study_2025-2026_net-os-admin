@@ -2,7 +2,7 @@
 ## Front matter
 title: "Лабораторная работа №3"
 subtitle: "Настройка DHCP-сервера"
-author: "Мантуров Татархан Бесланович"
+author: "Мантуров Татархан"
 
 ## Generic otions
 lang: ru-RU

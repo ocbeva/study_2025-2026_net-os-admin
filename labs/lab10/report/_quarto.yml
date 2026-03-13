@@ -24,15 +24,17 @@ csl: _resources/csl/gost-r-7-0-5-2008-numeric.csl
 format:
 ### Pdf output format
   pdf:
-    pdf-engine: xelatex
+    pdf-engine: pdflatex
     toc: true
+    latex-auto-install: false  # отключить автоустановку
+    latex-auto-mk: false
     number-sections: true
     colorlinks: false
     toc-depth: 2
     lof: true # List of figures
     lot: true # List of tables
 #### Document
-    documentclass: scrreprt
+    documentclass: article
     papersize: a4
     fontsize: 12pt
     linestretch: 1.5

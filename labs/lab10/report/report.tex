@@ -1,0 +1,258 @@
+\section{Цель
+работы}\label{ux446ux435ux43bux44c-ux440ux430ux431ux43eux442ux44b}
+
+Приобретение практических навыков по конфигурированию SMTP-сервера в
+части настройки аутентификации
+
+\section{Выполнение лабораторной
+работы}\label{ux432ux44bux43fux43eux43bux43dux435ux43dux438ux435-ux43bux430ux431ux43eux440ux430ux442ux43eux440ux43dux43eux439-ux440ux430ux431ux43eux442ux44b}
+
+Во втором терминале сервера запустим вывод логов почты (рис.
+{[}-@fig:001{]}).
+
+\begin{figure}
+\centering
+\pandocbounded{\includegraphics[keepaspectratio,alt={Логи почты /var/log/maillog}]{image/1.png}}
+\caption{Логи почты /var/log/maillog}\label{fig:001}
+\end{figure}
+
+В первом же терминале сервера авторизуемся под рутом и откроем файл
+конфигурации /etc/dovecot/dovecot.conf.
+
+В этом файле допишем в список рабочих протоколов протокол lmtp (рис.
+{[}-@fig:003{]}).
+
+\begin{figure}
+\centering
+\pandocbounded{\includegraphics[keepaspectratio,alt={/etc/dovecot/dovecot.conf}]{image/3.png}}
+\caption{/etc/dovecot/dovecot.conf}\label{fig:003}
+\end{figure}
+
+Далее, откроем конфигурационный файл /etc/dovecot/conf.d/10-master.conf.
+Внутри этого файла пропишем следующее тело для структуры service lmtp
+(рис. {[}-@fig:005{]}).
+
+\begin{figure}
+\centering
+\pandocbounded{\includegraphics[keepaspectratio,alt={service lmtp}]{image/5.png}}
+\caption{service lmtp}\label{fig:005}
+\end{figure}
+
+Далее, пропишем в postfix сокет, через который будет идти отправка
+сообщений. После этого откроем файл /etc/dovecot/conf.d/10-auth.conf
+(рис. {[}-@fig:006{]}).
+
+\begin{figure}
+\centering
+\pandocbounded{\includegraphics[keepaspectratio,alt={Настройка сокета}]{image/6.png}}
+\caption{Настройка сокета}\label{fig:006}
+\end{figure}
+
+В этом файле зададим значение для поля auth\_username\_format,
+отвечающее за формат имени пользователя для аутентификации. В нашем
+случае домен не будет указываться (рис. {[}-@fig:007{]}).
+
+\begin{figure}
+\centering
+\pandocbounded{\includegraphics[keepaspectratio,alt={auth\_username\_format}]{image/7.png}}
+\caption{auth\_username\_format}\label{fig:007}
+\end{figure}
+
+Перезапустим postfix и dovecot (рис. {[}-@fig:008{]}).
+
+\begin{figure}
+\centering
+\pandocbounded{\includegraphics[keepaspectratio,alt={Перезапуск postfix и dovecot}]{image/8.png}}
+\caption{Перезапуск postfix и dovecot}\label{fig:008}
+\end{figure}
+
+Теперь перейдём на виртуальную машину клиента. Попробуем отправить
+письмо самому себе (рис. {[}-@fig:009{]}).
+
+\begin{figure}
+\centering
+\pandocbounded{\includegraphics[keepaspectratio,alt={Отправка письма}]{image/9.png}}
+\caption{Отправка письма}\label{fig:009}
+\end{figure}
+
+В логах, которые мы открывали на сервере в самом начале выполнения
+лабораторной работы, мы видим, что письмо было доставлено в ящик. Об
+этом свидетельствует подпись ``saved mail to INBOX''. Кроме того, теперь
+в логах пишется, что транспортировка осуществляется через lmtp (passing
+\ldots{} to transport=lmtp) (рис. {[}-@fig:010{]}).
+
+\begin{figure}
+\centering
+\pandocbounded{\includegraphics[keepaspectratio,alt={Логи почты}]{image/1.png}}
+\caption{Логи почты}\label{fig:010}
+\end{figure}
+
+Откроем на сервере почтовый ящик, чтобы убедится, что письмо успешно
+доставлено. Как видим, это действительно так (рис. {[}-@fig:011{]}).
+
+\begin{figure}
+\centering
+\pandocbounded{\includegraphics[keepaspectratio,alt={Почтовый ящик mail}]{image/11.png}}
+\caption{Почтовый ящик mail}\label{fig:011}
+\end{figure}
+
+Теперь откроем файл конфигурации по пути
+/etc/dovecot/conf.d/10-master.conf.
+
+Приведем содержание тела структуры service auth к следующему виду.
+Разберём построчно
+
+\begin{verbatim}
+service auth { ... } - Эта строка объявляет начало секции конфигурации для внутренней службы Dovecot, которая называется auth.   
+
+unix_listener /var/spool/postfix/private/auth { ... } - Указывает Dovecot создать "слушателя" на основе UNIX-сокета.   
+
+group = postfix - Устанавливает группу-владельца для файла сокета.   
+user = postfix - Устанавливает пользователя-владельца для файла сокета.   
+mode = 0660 - Устанавливает права доступа к файлу сокета в восьмеричном формате.   
+      
+unix_listener auth-userdb { ... } - Создает второй UNIX-сокет.   
+
+mode = 0600 - Устанавливает права доступа для этого внутреннего сокета.   
+
+user = dovecot - Устанавливает пользователя-владельца dovecot.   
+\end{verbatim}
+
+(рис. {[}-@fig:013{]}).
+
+\begin{figure}
+\centering
+\pandocbounded{\includegraphics[keepaspectratio,alt={Структура service auth}]{image/13.png}}
+\caption{Структура service auth}\label{fig:013}
+\end{figure}
+
+Теперь настроим аутентификацию почты smtp для postfix и укажем, каким
+правилам следовать для работы с почтой и её фильтрации. Рассмотрим опции
+
+reject\_unknown\_recipient\_domain - Отклонить письмо, если домен в
+адресе получателя не существует.
+
+permit\_mynetworks - Разрешить письмо без дальнейших проверок, если
+IP-адрес клиента, отправляющего письмо, находится в списке доверенных
+сетей.
+
+reject\_non\_fqdn\_recipient - Отклонить письмо, если адрес получателя
+не является полностью определённым доменным именем.
+
+reject\_unauth\_destination - отклоняет письмо, если домен получателя не
+является локальным для этого сервера и при этом сессия не
+аутентифицирована.
+
+reject\_unverified\_recipient - Отклонить письмо, если Postfix не может
+проверить существование получателя.
+
+permit - Если ни одно из предыдущих правил не отклонило и не разрешило
+письмо, это правило разрешает его.
+
+(рис. {[}-@fig:014{]}).
+
+\begin{figure}
+\centering
+\pandocbounded{\includegraphics[keepaspectratio,alt={Настройка почты в postfix}]{image/14.png}}
+\caption{Настройка почты в postfix}\label{fig:014}
+\end{figure}
+
+Теперь отредактируем файл /etc/postfix/master.cf.
+
+В этом файле внесём изменения так, чтобы smtp поддерживал авторизацию по
+sasl (рис. {[}-@fig:016{]}).
+
+\begin{figure}
+\centering
+\pandocbounded{\includegraphics[keepaspectratio,alt={Включение авторизации}]{image/16.png}}
+\caption{Включение авторизации}\label{fig:016}
+\end{figure}
+
+Теперь перезапустим postfix и dovecot (рис. {[}-@fig:017{]}).
+
+\begin{figure}
+\centering
+\pandocbounded{\includegraphics[keepaspectratio,alt={Перезапуск postfix и dovecot}]{image/8.png}}
+\caption{Перезапуск postfix и dovecot}\label{fig:017}
+\end{figure}
+
+Теперь на клиенте установим telnet (рис. {[}-@fig:018{]}).
+
+\begin{figure}
+\centering
+\pandocbounded{\includegraphics[keepaspectratio,alt={Установка Telnet}]{image/18.png}}
+\caption{Установка Telnet}\label{fig:018}
+\end{figure}
+
+Теперь получим ключ авторизации. Этот ключ представляет из себя строку,
+содержащую имя пользователя и пароль, и зашифрованную в base64. Теперь
+по telnet подключимся к почтовому серверу и проверим соединение. После
+этого попробуем с помощью команды auth авторизироваться, в качестве
+ключа используя нашу base64 строку. Как видим, авторизация прошла
+успешно (Authentification successful) (рис. {[}-@fig:019{]}).
+
+\begin{figure}
+\centering
+\pandocbounded{\includegraphics[keepaspectratio,alt={Авторизация по telnet}]{image/19.png}}
+\caption{Авторизация по telnet}\label{fig:019}
+\end{figure}
+
+Теперь настроим сертификаты для postfix, а также уровень security и путь
+к базе данных кэша (рис. {[}-@fig:020{]}).
+
+\begin{figure}
+\centering
+\pandocbounded{\includegraphics[keepaspectratio,alt={Настройка postfix}]{image/20.png}}
+\caption{Настройка postfix}\label{fig:020}
+\end{figure}
+
+Вновь откроем файл /etc/postfix/master.cf и изменим его следующим
+образом (рис. {[}-@fig:021{]}).
+
+\begin{figure}
+\centering
+\pandocbounded{\includegraphics[keepaspectratio,alt={/etc/postfix/master.cf}]{image/21.png}}
+\caption{/etc/postfix/master.cf}\label{fig:021}
+\end{figure}
+
+Теперь настроим firewall, разрешив использовать smtp-submission, и
+перезапустим postfix (рис. {[}-@fig:022{]}).
+
+\begin{figure}
+\centering
+\pandocbounded{\includegraphics[keepaspectratio,alt={Настройка firewall}]{image/22.png}}
+\caption{Настройка firewall}\label{fig:022}
+\end{figure}
+
+Теперь подключимся к серверу через openssl (рис. {[}-@fig:023{]}).
+
+\begin{figure}
+\centering
+\pandocbounded{\includegraphics[keepaspectratio,alt={openssl}]{image/23.png}}
+\caption{openssl}\label{fig:023}
+\end{figure}
+
+Теперь сохраним внесённые нами изменения в vagrant (рис.
+{[}-@fig:029{]}).
+
+\begin{figure}
+\centering
+\pandocbounded{\includegraphics[keepaspectratio,alt={vagrant}]{image/29.png}}
+\caption{vagrant}\label{fig:029}
+\end{figure}
+
+На сервере изменим скрипт mail.sh следующим образом (рис.
+{[}-@fig:030{]}).
+
+\begin{figure}
+\centering
+\pandocbounded{\includegraphics[keepaspectratio,alt={mail.sh для сервера}]{image/30.png}}
+\caption{mail.sh для сервера}\label{fig:030}
+\end{figure}
+
+\section{Выводы}\label{ux432ux44bux432ux43eux434ux44b}
+
+В результате выполнения лабораторной работы были получены навыки
+продвинутой настройки smtp и авторизации
+
+\protect\phantomsection\label{refs}
